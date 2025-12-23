@@ -18,43 +18,38 @@ const Lobby = () => {
       style={{
         minHeight: "100vh",
         display: "flex",
-        alignItems: "center",
         justifyContent: "center",
-        background: "linear-gradient(135deg, #2563eb, #1e3a8a)",
-        padding: "20px",
+        alignItems: "center",
+        background: "#0b0b0b",
       }}
     >
       <div
         style={{
-          background: "#ffffff",
-          padding: "40px 30px",
+          background: "#111",
+          padding: "40px",
           borderRadius: "16px",
-          boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
+          width: "340px",
+          boxShadow: "0 0 30px rgba(34,197,94,0.15)",
           textAlign: "center",
-          width: "100%",
-          maxWidth: "360px",
         }}
       >
-        <h2 style={{ marginBottom: "10px", color: "#111827" }}>
+        <h2 style={{ color: "#22c55e", marginBottom: "10px" }}>
           Join Video Call
         </h2>
 
-        <p style={{ marginBottom: "25px", color: "#6b7280" }}>
-          Enter a room ID to start or join a call
+        <p style={{ color: "#9ca3af", marginBottom: "25px" }}>
+          Enter a room ID
         </p>
 
         <input
-          type="text"
-          placeholder="Room ID"
           value={room}
           onChange={(e) => setRoom(e.target.value)}
+          placeholder="Room ID"
           style={{
             width: "100%",
             padding: "12px",
-            fontSize: "16px",
             borderRadius: "8px",
-            border: "1px solid #d1d5db",
-            outline: "none",
+            fontSize: "15px",
           }}
         />
 
@@ -64,12 +59,10 @@ const Lobby = () => {
             marginTop: "22px",
             width: "100%",
             padding: "12px",
-            fontSize: "16px",
             borderRadius: "8px",
-            background: "#2563eb",
-            color: "white",
-            border: "none",
-            cursor: "pointer",
+            background: "#22c55e",
+            color: "#000",
+            fontSize: "16px",
           }}
         >
           Join
