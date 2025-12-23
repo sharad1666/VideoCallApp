@@ -42,7 +42,9 @@ const Room = () => {
 
     peer.ontrack = (e) => {
       setRemoteStream(e.streams[0]);
-      remoteVideoRef.current.srcObject = e.streams[0];
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = e.streams[0];
+      }
     };
 
     peer.onicecandidate = (e) => {
@@ -56,6 +58,8 @@ const Room = () => {
   }, [remoteId, socket]);
 
   useEffect(() => {
+    if (!socket) return;
+
     socket.on("ice:candidate", ({ candidate }) => {
       pc.current.addIceCandidate(candidate);
     });
@@ -84,6 +88,8 @@ const Room = () => {
 
   // -------- INCOMING CALL --------
   useEffect(() => {
+    if (!socket) return;
+
     socket.on("incoming:call", async ({ from, offer }) => {
       setRemoteId(from);
 
@@ -110,6 +116,8 @@ const Room = () => {
 
   // -------- CALL ACCEPTED --------
   useEffect(() => {
+    if (!socket) return;
+
     socket.on("call:accepted", async ({ answer }) => {
       await pc.current.setRemoteDescription(answer);
     });
@@ -119,93 +127,110 @@ const Room = () => {
 
   // -------- CONTROLS --------
   const toggleMic = () => {
-    localStream.getAudioTracks()[0].enabled =
-      !localStream.getAudioTracks()[0].enabled;
+    if (!localStream) return;
+    const track = localStream.getAudioTracks()[0];
+    track.enabled = !track.enabled;
   };
 
   const toggleCam = () => {
-    localStream.getVideoTracks()[0].enabled =
-      !localStream.getVideoTracks()[0].enabled;
+    if (!localStream) return;
+    const track = localStream.getVideoTracks()[0];
+    track.enabled = !track.enabled;
   };
 
   const endCall = () => {
-    localStream.getTracks().forEach((t) => t.stop());
+    localStream?.getTracks().forEach((t) => t.stop());
     pc.current.close();
     window.location.href = "/";
   };
 
   // -------- UI --------
   return (
-  <div style={{ minHeight: "100vh", padding: 20 }}>
-    <h2 style={{ textAlign: "center" }}>Room: {roomId}</h2>
+    <div style={{ minHeight: "100vh", padding: 20 }}>
+      <h2 style={{ textAlign: "center", marginBottom: 5 }}>
+        Room: {roomId}
+      </h2>
 
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "center",
-        gap: 20,
-        flexWrap: "wrap",
-        marginTop: 20,
-      }}
-    >
-      <video
-        ref={localVideoRef}
-        autoPlay
-        muted
-        playsInline
-        style={{
-          width: "300px",
-          borderRadius: "10px",
-          background: "black",
-        }}
-      />
+      {!remoteId && (
+        <p style={{ textAlign: "center", color: "#555" }}>
+          Waiting for another user to join…
+        </p>
+      )}
 
-      <video
-        ref={remoteVideoRef}
-        autoPlay
-        playsInline
-        style={{
-          width: "300px",
-          borderRadius: "10px",
-          background: "black",
-        }}
-      />
-    </div>
-
-    {!inCall && remoteId && (
-      <div style={{ textAlign: "center", marginTop: 20 }}>
-        <button onClick={startCall}>📞 Start Call</button>
-      </div>
-    )}
-
-    {inCall && (
       <div
         style={{
-          position: "fixed",
-          bottom: 20,
-          left: "50%",
-          transform: "translateX(-50%)",
-          background: "white",
-          padding: "12px 20px",
-          borderRadius: "12px",
-          boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
           display: "flex",
-          gap: 12,
+          justifyContent: "center",
+          gap: 20,
+          flexWrap: "wrap",
+          marginTop: 20,
         }}
       >
-        <button onClick={toggleMic}>🎤</button>
-        <button onClick={toggleCam}>📷</button>
-        <button
-          onClick={endCall}
-          style={{ background: "#dc2626" }}
-        >
-          ❌
-        </button>
-      </div>
-    )}
-  </div>
-);
+        <div style={{ textAlign: "center" }}>
+          <p>You</p>
+          <video
+            ref={localVideoRef}
+            autoPlay
+            muted
+            playsInline
+            style={{
+              width: "300px",
+              height: "200px",
+              borderRadius: "12px",
+              background: "black",
+            }}
+          />
+        </div>
 
+        <div style={{ textAlign: "center" }}>
+          <p>Remote</p>
+          <video
+            ref={remoteVideoRef}
+            autoPlay
+            playsInline
+            style={{
+              width: "300px",
+              height: "200px",
+              borderRadius: "12px",
+              background: "black",
+            }}
+          />
+        </div>
+      </div>
+
+      {!inCall && remoteId && (
+        <div style={{ textAlign: "center", marginTop: 30 }}>
+          <button onClick={startCall}>📞 Start Call</button>
+        </div>
+      )}
+
+      {inCall && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 20,
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "white",
+            padding: "14px 22px",
+            borderRadius: "14px",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+            display: "flex",
+            gap: 14,
+          }}
+        >
+          <button onClick={toggleMic}>🎤</button>
+          <button onClick={toggleCam}>📷</button>
+          <button
+            onClick={endCall}
+            style={{ background: "#dc2626" }}
+          >
+            ❌
+          </button>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default Room;
