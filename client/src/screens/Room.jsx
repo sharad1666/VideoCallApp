@@ -2,33 +2,42 @@ import React, { useEffect, useRef, useState } from "react";
 import { useSocket } from "../context/SocketProvider";
 import peerService from "../service/peer";
 
+const ROOM_ID = "test-room"; // same for both users
+
 const Room = () => {
   const socket = useSocket();
 
+  const [joined, setJoined] = useState(false);
   const [remoteId, setRemoteId] = useState(null);
-  const [localStream, setLocalStream] = useState(null);
-  const [remoteStream, setRemoteStream] = useState(null);
   const [inCall, setInCall] = useState(false);
 
-  const localVideoRef = useRef();
-  const remoteVideoRef = useRef();
+  const [localStream, setLocalStream] = useState(null);
+  const [remoteStream, setRemoteStream] = useState(null);
 
-  // ---------- JOIN ROOM ----------
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
+
+  // ---------------- JOIN ROOM ----------------
+  const handleJoin = () => {
+    socket.emit("room:join", { room: ROOM_ID });
+    setJoined(true);
+  };
+
   useEffect(() => {
-    socket.emit("room:join", { room: "test" });
-
     socket.on("user:joined", ({ id }) => {
       setRemoteId(id);
     });
 
-    return () => {
-      socket.off("user:joined");
-    };
+    return () => socket.off("user:joined");
   }, [socket]);
 
-  // ---------- ICE ----------
+  // ---------------- WEBRTC SETUP ----------------
   useEffect(() => {
     const peer = peerService.getPeer();
+
+    peer.ontrack = (e) => {
+      setRemoteStream(e.streams[0]);
+    };
 
     peer.onicecandidate = (e) => {
       if (e.candidate && remoteId) {
@@ -37,10 +46,6 @@ const Room = () => {
           candidate: e.candidate,
         });
       }
-    };
-
-    peer.ontrack = (e) => {
-      setRemoteStream(e.streams[0]);
     };
   }, [remoteId, socket]);
 
@@ -52,7 +57,7 @@ const Room = () => {
     return () => socket.off("ice:candidate");
   }, [socket]);
 
-  // ---------- CALL ----------
+  // ---------------- START CALL (CALLER) ----------------
   const startCall = async () => {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: true,
@@ -70,31 +75,41 @@ const Room = () => {
     setInCall(true);
   };
 
-  socket.on("incoming:call", async ({ from, offer }) => {
-    setRemoteId(from);
+  // ---------------- INCOMING CALL (CALLEE) ----------------
+  useEffect(() => {
+    socket.on("incoming:call", async ({ from, offer }) => {
+      setRemoteId(from);
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: true,
-      audio: true,
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true,
+      });
+
+      setLocalStream(stream);
+      stream.getTracks().forEach((t) =>
+        peerService.getPeer().addTrack(t, stream)
+      );
+
+      const answer = await peerService.createAnswer(offer);
+      socket.emit("call:accepted", { to: from, answer });
+
+      setInCall(true);
     });
 
-    setLocalStream(stream);
-    stream.getTracks().forEach((t) =>
-      peerService.getPeer().addTrack(t, stream)
-    );
+    return () => socket.off("incoming:call");
+  }, [socket]);
 
-    const answer = await peerService.createAnswer(offer);
-    socket.emit("call:accepted", { to: from, answer });
+  // ---------------- CALL ACCEPTED ----------------
+  useEffect(() => {
+    socket.on("call:accepted", async ({ answer }) => {
+      await peerService.setAnswer(answer);
+      setInCall(true);
+    });
 
-    setInCall(true);
-  });
+    return () => socket.off("call:accepted");
+  }, [socket]);
 
-  socket.on("call:accepted", async ({ answer }) => {
-    await peerService.setAnswer(answer);
-    setInCall(true);
-  });
-
-  // ---------- VIDEO BIND ----------
+  // ---------------- VIDEO BIND ----------------
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
@@ -107,31 +122,31 @@ const Room = () => {
     }
   }, [remoteStream]);
 
-  // ---------- CONTROLS ----------
-  const toggleMic = () => {
-    localStream.getAudioTracks()[0].enabled =
-      !localStream.getAudioTracks()[0].enabled;
-  };
-
-  const toggleCamera = () => {
-    localStream.getVideoTracks()[0].enabled =
-      !localStream.getVideoTracks()[0].enabled;
-  };
-
+  // ---------------- END CALL ----------------
   const endCall = () => {
-    localStream.getTracks().forEach((t) => t.stop());
+    localStream?.getTracks().forEach((t) => t.stop());
     peerService.close();
-    setInCall(false);
-    setRemoteStream(null);
+
     setLocalStream(null);
+    setRemoteStream(null);
+    setInCall(false);
+    setRemoteId(null);
   };
 
-  // ---------- UI ----------
+  // ---------------- UI ----------------
   return (
     <div style={{ textAlign: "center" }}>
-      <h2>{inCall ? "In Call" : "Waiting..."}</h2>
+      <h2>
+        {!joined
+          ? "Join the room"
+          : inCall
+          ? "In Call"
+          : "Waiting for other user"}
+      </h2>
 
-      {!inCall && remoteId && (
+      {!joined && <button onClick={handleJoin}>🚪 Join</button>}
+
+      {joined && remoteId && !inCall && (
         <button onClick={startCall}>📞 Start Call</button>
       )}
 
@@ -144,13 +159,7 @@ const Room = () => {
         )}
       </div>
 
-      {inCall && (
-        <div>
-          <button onClick={toggleMic}>🎤</button>
-          <button onClick={toggleCamera}>📷</button>
-          <button onClick={endCall}>❌</button>
-        </div>
-      )}
+      {inCall && <button onClick={endCall}>❌ End Call</button>}
     </div>
   );
 };
