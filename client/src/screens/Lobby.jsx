@@ -6,24 +6,29 @@ const Lobby = () => {
   const navigate = useNavigate();
 
   const handleJoin = () => {
-    if (!room) {
-      alert("Enter room ID");
+    if (!room.trim()) {
+      alert("Please enter room id");
       return;
     }
+
     navigate(`/room/${room}`);
   };
 
   return (
-    <div style={{ textAlign: "center", marginTop: 100 }}>
+    <div style={{ textAlign: "center", marginTop: "100px" }}>
       <h2>Join Video Call</h2>
+
       <input
         type="text"
         placeholder="Enter room id"
         value={room}
         onChange={(e) => setRoom(e.target.value)}
       />
-      <br /><br />
-      <button onClick={handleJoin}>🚪 Join</button>
+
+      <br />
+      <br />
+
+      <button onClick={handleJoin}>Join</button>
     </div>
   );
 };
