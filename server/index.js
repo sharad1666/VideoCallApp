@@ -31,6 +31,10 @@ io.on("connection", (socket) => {
     io.to(to).emit("ice:candidate", { candidate });
   });
 
+  socket.on("media:state", ({ to, type, value }) => {
+  io.to(to).emit("media:state", { type, value });
+});
+
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
   });
