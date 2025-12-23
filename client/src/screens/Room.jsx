@@ -8,9 +8,11 @@ const Room = () => {
 
   const [remoteId, setRemoteId] = useState(null);
   const [inCall, setInCall] = useState(false);
+  const [muted, setMuted] = useState(false);
+  const [camOff, setCamOff] = useState(false);
+  const [status, setStatus] = useState("");
 
   const [localStream, setLocalStream] = useState(null);
-  const [remoteStream, setRemoteStream] = useState(null);
 
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -24,30 +26,31 @@ const Room = () => {
     })
   );
 
-  // -------- JOIN ROOM --------
+  // JOIN ROOM
   useEffect(() => {
     if (!socket) return;
     socket.emit("room:join", { room: roomId });
 
     socket.on("user:joined", ({ id }) => {
       setRemoteId(id);
+      setStatus("User joined");
     });
 
-    return () => socket.off("user:joined");
+    socket.on("disconnect", () => {
+      setStatus("User disconnected");
+      setInCall(false);
+    });
+
+    return () => socket.off();
   }, [socket, roomId]);
 
-  // -------- ICE + TRACK --------
+  // ICE + TRACK
   useEffect(() => {
-    const peer = pc.current;
-
-    peer.ontrack = (e) => {
-      setRemoteStream(e.streams[0]);
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = e.streams[0];
-      }
+    pc.current.ontrack = (e) => {
+      remoteVideoRef.current.srcObject = e.streams[0];
     };
 
-    peer.onicecandidate = (e) => {
+    pc.current.onicecandidate = (e) => {
       if (e.candidate && remoteId) {
         socket.emit("ice:candidate", {
           to: remoteId,
@@ -58,40 +61,18 @@ const Room = () => {
   }, [remoteId, socket]);
 
   useEffect(() => {
-    if (!socket) return;
-
     socket.on("ice:candidate", ({ candidate }) => {
       pc.current.addIceCandidate(candidate);
     });
 
-    return () => socket.off("ice:candidate");
-  }, [socket]);
-
-  // -------- START CALL --------
-  const startCall = async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: true,
-      audio: true,
+    socket.on("call:accepted", async ({ answer }) => {
+      await pc.current.setRemoteDescription(answer);
+      setInCall(true);
     });
-
-    setLocalStream(stream);
-    localVideoRef.current.srcObject = stream;
-
-    stream.getTracks().forEach((t) => pc.current.addTrack(t, stream));
-
-    const offer = await pc.current.createOffer();
-    await pc.current.setLocalDescription(offer);
-
-    socket.emit("user:call", { to: remoteId, offer });
-    setInCall(true);
-  };
-
-  // -------- INCOMING CALL --------
-  useEffect(() => {
-    if (!socket) return;
 
     socket.on("incoming:call", async ({ from, offer }) => {
       setRemoteId(from);
+      setStatus("Incoming call...");
 
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
@@ -100,7 +81,6 @@ const Room = () => {
 
       setLocalStream(stream);
       localVideoRef.current.srcObject = stream;
-
       stream.getTracks().forEach((t) => pc.current.addTrack(t, stream));
 
       await pc.current.setRemoteDescription(offer);
@@ -111,50 +91,54 @@ const Room = () => {
       setInCall(true);
     });
 
-    return () => socket.off("incoming:call");
+    return () => socket.off();
   }, [socket]);
 
-  // -------- CALL ACCEPTED --------
-  useEffect(() => {
-    if (!socket) return;
-
-    socket.on("call:accepted", async ({ answer }) => {
-      await pc.current.setRemoteDescription(answer);
+  const startCall = async () => {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: true,
     });
 
-    return () => socket.off("call:accepted");
-  }, [socket]);
+    setLocalStream(stream);
+    localVideoRef.current.srcObject = stream;
+    stream.getTracks().forEach((t) => pc.current.addTrack(t, stream));
 
-  // -------- CONTROLS --------
+    const offer = await pc.current.createOffer();
+    await pc.current.setLocalDescription(offer);
+
+    socket.emit("user:call", { to: remoteId, offer });
+    setStatus("Calling...");
+  };
+
   const toggleMic = () => {
-    if (!localStream) return;
     const track = localStream.getAudioTracks()[0];
     track.enabled = !track.enabled;
+    setMuted(!track.enabled);
   };
 
   const toggleCam = () => {
-    if (!localStream) return;
     const track = localStream.getVideoTracks()[0];
     track.enabled = !track.enabled;
+    setCamOff(!track.enabled);
   };
 
   const endCall = () => {
     localStream?.getTracks().forEach((t) => t.stop());
     pc.current.close();
-    window.location.href = "/";
+    setStatus("Call ended");
+    setInCall(false);
+    setTimeout(() => (window.location.href = "/"), 1200);
   };
 
-  // -------- UI --------
   return (
-    <div style={{ minHeight: "100vh", padding: 20 }}>
-      <h2 style={{ textAlign: "center", marginBottom: 5 }}>
+    <div style={{ minHeight: "100vh", background: "#0b0b0b", padding: 20 }}>
+      <h2 style={{ textAlign: "center", color: "#22c55e" }}>
         Room: {roomId}
       </h2>
 
-      {!remoteId && (
-        <p style={{ textAlign: "center", color: "#555" }}>
-          Waiting for another user to join…
-        </p>
+      {status && (
+        <p style={{ textAlign: "center", color: "#9ca3af" }}>{status}</p>
       )}
 
       <div
@@ -162,45 +146,40 @@ const Room = () => {
           display: "flex",
           justifyContent: "center",
           gap: 20,
-          flexWrap: "wrap",
           marginTop: 20,
+          flexWrap: "wrap",
         }}
       >
-        <div style={{ textAlign: "center" }}>
-          <p>You</p>
+        <div>
+          <p>You {muted && "🔇"} {camOff && "📷❌"}</p>
           <video
             ref={localVideoRef}
             autoPlay
             muted
             playsInline
-            style={{
-              width: "300px",
-              height: "200px",
-              borderRadius: "12px",
-              background: "black",
-            }}
+            style={{ width: 300, borderRadius: 12, background: "#000" }}
           />
         </div>
 
-        <div style={{ textAlign: "center" }}>
+        <div>
           <p>Remote</p>
           <video
             ref={remoteVideoRef}
             autoPlay
             playsInline
-            style={{
-              width: "300px",
-              height: "200px",
-              borderRadius: "12px",
-              background: "black",
-            }}
+            style={{ width: 300, borderRadius: 12, background: "#000" }}
           />
         </div>
       </div>
 
       {!inCall && remoteId && (
-        <div style={{ textAlign: "center", marginTop: 30 }}>
-          <button onClick={startCall}>📞 Start Call</button>
+        <div style={{ textAlign: "center", marginTop: 20 }}>
+          <button
+            onClick={startCall}
+            style={{ background: "#22c55e", color: "#000", padding: "10px 20px" }}
+          >
+            Start Call
+          </button>
         </div>
       )}
 
@@ -211,20 +190,21 @@ const Room = () => {
             bottom: 20,
             left: "50%",
             transform: "translateX(-50%)",
-            background: "white",
-            padding: "14px 22px",
+            background: "#111",
+            padding: "14px 20px",
             borderRadius: "14px",
-            boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
             display: "flex",
-            gap: 14,
+            gap: 12,
+            boxShadow: "0 0 20px rgba(34,197,94,0.2)",
           }}
         >
-          <button onClick={toggleMic}>🎤</button>
-          <button onClick={toggleCam}>📷</button>
-          <button
-            onClick={endCall}
-            style={{ background: "#dc2626" }}
-          >
+          <button onClick={toggleMic} style={{ background: muted ? "#ef4444" : "#22c55e" }}>
+            🎤
+          </button>
+          <button onClick={toggleCam} style={{ background: camOff ? "#ef4444" : "#22c55e" }}>
+            📷
+          </button>
+          <button onClick={endCall} style={{ background: "#ef4444" }}>
             ❌
           </button>
         </div>
