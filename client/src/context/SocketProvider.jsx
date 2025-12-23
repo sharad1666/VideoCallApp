@@ -1,36 +1,29 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+import React, { createContext, useContext, useEffect, useRef } from "react";
 import { io } from "socket.io-client";
 
 const SocketContext = createContext(null);
 
 export const SocketProvider = ({ children }) => {
   const socketRef = useRef(null);
-  const [socket, setSocket] = useState(null);
 
   useEffect(() => {
-    // Create socket connection
-    socketRef.current = io("https://videocallapp-backend-cllm.onrender.com", {
-      transports: ["websocket"],
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-    });
+    socketRef.current = io(
+      "https://videocallapp-backend-cllm.onrender.com",
+      {
+        transports: ["websocket"],
+      }
+    );
 
-    setSocket(socketRef.current);
-
-    // Cleanup on unmount
     return () => {
-      socketRef.current?.disconnect();
+      socketRef.current.disconnect();
     };
   }, []);
 
   return (
-    <SocketContext.Provider value={socket}>
+    <SocketContext.Provider value={socketRef.current}>
       {children}
     </SocketContext.Provider>
   );
 };
 
-export const useSocket = () => {
-  return useContext(SocketContext);
-};
+export const useSocket = () => useContext(SocketContext);
