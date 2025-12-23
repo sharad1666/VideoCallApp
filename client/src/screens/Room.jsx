@@ -8,6 +8,7 @@ const RoomPage = () => {
   const [remoteSocketId, setRemoteSocketId] = useState(null);
   const [myStream, setMyStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
+  const [callStarted, setCallStarted] = useState(false);
 
   const [isMicOn, setIsMicOn] = useState(true);
   const [isCameraOn, setIsCameraOn] = useState(true);
@@ -15,34 +16,47 @@ const RoomPage = () => {
   const myVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
 
-  // -------------------- SOCKET EVENTS --------------------
-
+  // ---------------- USER JOIN ----------------
   const handleUserJoined = useCallback(({ id }) => {
     setRemoteSocketId(id);
   }, []);
 
+  // ---------------- CALL USER (CALLER) ----------------
   const handleCallUser = useCallback(async () => {
+    if (!remoteSocketId) return;
+
     const stream = await navigator.mediaDevices.getUserMedia({
       video: true,
       audio: true,
     });
 
     setMyStream(stream);
-    stream.getTracks().forEach((track) => peer.peer.addTrack(track, stream));
+    setCallStarted(true);
+
+    stream.getTracks().forEach((track) =>
+      peer.peer.addTrack(track, stream)
+    );
 
     const offer = await peer.getOffer();
     socket.emit("user:call", { to: remoteSocketId, offer });
   }, [remoteSocketId, socket]);
 
+  // ---------------- INCOMING CALL (CALLEE) ----------------
   const handleIncomingCall = useCallback(
     async ({ from, offer }) => {
+      setRemoteSocketId(from);
+
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: true,
       });
 
       setMyStream(stream);
-      stream.getTracks().forEach((track) => peer.peer.addTrack(track, stream));
+      setCallStarted(true);
+
+      stream.getTracks().forEach((track) =>
+        peer.peer.addTrack(track, stream)
+      );
 
       const answer = await peer.getAnswer(offer);
       socket.emit("call:accepted", { to: from, answer });
@@ -50,12 +64,13 @@ const RoomPage = () => {
     [socket]
   );
 
+  // ---------------- CALL ACCEPTED ----------------
   const handleCallAccepted = useCallback(({ answer }) => {
     peer.setRemoteAnswer(answer);
+    setCallStarted(true);
   }, []);
 
-  // -------------------- WEBRTC HANDLERS --------------------
-
+  // ---------------- WEBRTC EVENTS ----------------
   useEffect(() => {
     peer.peer.ontrack = (event) => {
       setRemoteStream(event.streams[0]);
@@ -83,8 +98,20 @@ const RoomPage = () => {
     return () => socket.off("ice:candidate");
   }, [socket]);
 
-  // -------------------- VIDEO REF BINDING --------------------
+  // ---------------- SOCKET LISTENERS ----------------
+  useEffect(() => {
+    socket.on("user:joined", handleUserJoined);
+    socket.on("incoming:call", handleIncomingCall);
+    socket.on("call:accepted", handleCallAccepted);
 
+    return () => {
+      socket.off("user:joined", handleUserJoined);
+      socket.off("incoming:call", handleIncomingCall);
+      socket.off("call:accepted", handleCallAccepted);
+    };
+  }, [socket, handleUserJoined, handleIncomingCall, handleCallAccepted]);
+
+  // ---------------- VIDEO REF BINDING ----------------
   useEffect(() => {
     if (myVideoRef.current && myStream) {
       myVideoRef.current.srcObject = myStream;
@@ -97,8 +124,7 @@ const RoomPage = () => {
     }
   }, [remoteStream]);
 
-  // -------------------- CONTROLS --------------------
-
+  // ---------------- CONTROLS ----------------
   const toggleMic = () => {
     myStream?.getAudioTracks().forEach((track) => {
       track.enabled = !track.enabled;
@@ -119,78 +145,83 @@ const RoomPage = () => {
     });
 
     const screenTrack = screenStream.getVideoTracks()[0];
-    const sender = peer.peer
-      .getSenders()
-      .find((s) => s.track?.kind === "video");
-
-    if (sender) sender.replaceTrack(screenTrack);
+    peer.replaceVideoTrack(screenTrack);
 
     screenTrack.onended = () => {
-      sender.replaceTrack(myStream.getVideoTracks()[0]);
+      peer.replaceVideoTrack(myStream.getVideoTracks()[0]);
     };
   };
 
-  const handleEndCall = () => {
+  const endCall = () => {
     myStream?.getTracks().forEach((track) => track.stop());
-    peer.peer.close();
+    peer.closePeer();
+
+    setMyStream(null);
+    setRemoteStream(null);
+    setCallStarted(false);
+    setRemoteSocketId(null);
+
     window.location.href = "/";
   };
 
-  // -------------------- SOCKET LISTENERS --------------------
-
-  useEffect(() => {
-    socket.on("user:joined", handleUserJoined);
-    socket.on("incoming:call", handleIncomingCall);
-    socket.on("call:accepted", handleCallAccepted);
-
-    return () => {
-      socket.off("user:joined", handleUserJoined);
-      socket.off("incoming:call", handleIncomingCall);
-      socket.off("call:accepted", handleCallAccepted);
-    };
-  }, [socket, handleUserJoined, handleIncomingCall, handleCallAccepted]);
-
-  // -------------------- CLEANUP --------------------
-
+  // ---------------- CLEANUP ----------------
   useEffect(() => {
     return () => {
-      peer.peer.close();
+      peer.closePeer();
       myStream?.getTracks().forEach((track) => track.stop());
     };
   }, [myStream]);
 
-  // -------------------- UI --------------------
-
+  // ---------------- UI ----------------
   return (
     <div style={{ textAlign: "center" }}>
-      <h1>Room Page</h1>
-      <h4>{remoteSocketId ? "Connected" : "Waiting for user..."}</h4>
+      <h1>Room</h1>
+      <h3>{callStarted ? "In Call" : "Waiting for user..."}</h3>
 
-      {remoteSocketId && !myStream && (
+      {remoteSocketId && !callStarted && (
         <button onClick={handleCallUser}>📞 Call</button>
       )}
 
-      <div style={{ display: "flex", justifyContent: "center", gap: 10 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          gap: 10,
+          flexWrap: "wrap",
+          marginTop: 20,
+        }}
+      >
         {myStream && (
           <video
             ref={myVideoRef}
             autoPlay
             muted
             playsInline
-            style={{ width: "45%", borderRadius: 10 }}
+            style={{
+              width: "45%",
+              maxWidth: 400,
+              borderRadius: 10,
+              background: "black",
+            }}
           />
         )}
+
         {remoteStream && (
           <video
             ref={remoteVideoRef}
             autoPlay
             playsInline
-            style={{ width: "45%", borderRadius: 10 }}
+            style={{
+              width: "45%",
+              maxWidth: 400,
+              borderRadius: 10,
+              background: "black",
+            }}
           />
         )}
       </div>
 
-      {myStream && (
+      {callStarted && (
         <div style={{ marginTop: 20 }}>
           <button onClick={toggleMic}>
             {isMicOn ? "🎤 Mute" : "🔇 Unmute"}
@@ -198,12 +229,12 @@ const RoomPage = () => {
           <button onClick={toggleCamera}>
             {isCameraOn ? "📷 Camera Off" : "📷 Camera On"}
           </button>
-          <button onClick={startScreenShare}>🖥 Share Screen</button>
+          <button onClick={startScreenShare}>🖥 Share</button>
           <button
-            onClick={handleEndCall}
+            onClick={endCall}
             style={{ background: "red", color: "white" }}
           >
-            ❌ End Call
+            ❌ End
           </button>
         </div>
       )}
