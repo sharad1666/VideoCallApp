@@ -1,23 +1,20 @@
-const express = require('express');
-const { Server } = require("socket.io");
+const express = require("express");
 const http = require("http");
+const { Server } = require("socket.io");
 
 const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: "*", // temporary, for testing
-    methods: ["GET", "POST"]
-  }
+    origin: "*",
+  },
 });
 
-// WebRTC / Socket.io logic
 io.on("connection", (socket) => {
-  socket.on("room:join", ({ email, room }) => {
+  socket.on("room:join", ({ room }) => {
     socket.join(room);
-    socket.to(room).emit("user:joined", { email, id: socket.id });
-    socket.emit("room:join", { email, room });
+    socket.to(room).emit("user:joined", { id: socket.id });
   });
 
   socket.on("user:call", ({ to, offer }) => {
