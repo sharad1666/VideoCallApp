@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useSocket } from "../context/SocketProvider";
 import peerService from "../service/peer";
 
-const ROOM_ID = "test-room"; // same for both users
+const ROOM_ID = "test-room";
 
 const Room = () => {
   const socket = useSocket();
@@ -17,13 +17,16 @@ const Room = () => {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
 
-  // ---------------- JOIN ROOM ----------------
+  // ---------------- JOIN ----------------
   const handleJoin = () => {
+    if (!socket) return;
     socket.emit("room:join", { room: ROOM_ID });
     setJoined(true);
   };
 
   useEffect(() => {
+    if (!socket) return;
+
     socket.on("user:joined", ({ id }) => {
       setRemoteId(id);
     });
@@ -31,8 +34,10 @@ const Room = () => {
     return () => socket.off("user:joined");
   }, [socket]);
 
-  // ---------------- WEBRTC SETUP ----------------
+  // ---------------- WEBRTC ----------------
   useEffect(() => {
+    if (!socket) return;
+
     const peer = peerService.getPeer();
 
     peer.ontrack = (e) => {
@@ -47,9 +52,11 @@ const Room = () => {
         });
       }
     };
-  }, [remoteId, socket]);
+  }, [socket, remoteId]);
 
   useEffect(() => {
+    if (!socket) return;
+
     socket.on("ice:candidate", ({ candidate }) => {
       peerService.getPeer().addIceCandidate(candidate);
     });
@@ -57,7 +64,7 @@ const Room = () => {
     return () => socket.off("ice:candidate");
   }, [socket]);
 
-  // ---------------- START CALL (CALLER) ----------------
+  // ---------------- CALLER ----------------
   const startCall = async () => {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: true,
@@ -75,8 +82,10 @@ const Room = () => {
     setInCall(true);
   };
 
-  // ---------------- INCOMING CALL (CALLEE) ----------------
+  // ---------------- CALLEE ----------------
   useEffect(() => {
+    if (!socket) return;
+
     socket.on("incoming:call", async ({ from, offer }) => {
       setRemoteId(from);
 
@@ -99,8 +108,10 @@ const Room = () => {
     return () => socket.off("incoming:call");
   }, [socket]);
 
-  // ---------------- CALL ACCEPTED ----------------
+  // ---------------- ACCEPT ----------------
   useEffect(() => {
+    if (!socket) return;
+
     socket.on("call:accepted", async ({ answer }) => {
       await peerService.setAnswer(answer);
       setInCall(true);
@@ -122,7 +133,7 @@ const Room = () => {
     }
   }, [remoteStream]);
 
-  // ---------------- END CALL ----------------
+  // ---------------- END ----------------
   const endCall = () => {
     localStream?.getTracks().forEach((t) => t.stop());
     peerService.close();
@@ -144,7 +155,11 @@ const Room = () => {
           : "Waiting for other user"}
       </h2>
 
-      {!joined && <button onClick={handleJoin}>🚪 Join</button>}
+      {!joined && (
+        <button onClick={handleJoin} disabled={!socket}>
+          🚪 Join
+        </button>
+      )}
 
       {joined && remoteId && !inCall && (
         <button onClick={startCall}>📞 Start Call</button>
