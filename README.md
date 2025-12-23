@@ -1,108 +1,144 @@
-# Video Call App
+# 🎥 Video Call App (WebRTC + Socket.IO)
 
-A simple **WebRTC video call application** built with **React** (frontend) and **Node.js + Socket.IO** (backend). Users can join a room using an email ID and room number, and make video calls to other participants in the same room.  
-
----
-
-## Features
-
-- Join a room using Email ID and Room Number
-- Real-time video/audio communication
-- Peer-to-peer connection using **WebRTC**
-- Signaling via **Socket.IO**
-- Works in modern browsers
+A real-time **peer-to-peer video calling web application** built using **WebRTC** and **Socket.IO**, featuring screen sharing, live media controls, call timer, and a modern **piano black & neon green** UI.  
+The application is fully deployed on **Render** and works on both desktop and mobile browsers.
 
 ---
 
-## Tech Stack
+## 🚀 Live Demo
 
-- **Frontend:** React, React Router, React Hooks
-- **Backend:** Node.js, Express, Socket.IO
-- **WebRTC:** RTCPeerConnection for video calls
+🔗 **Frontend (Live App)**  
+https://videocallapp-frontend-2rbz.onrender.com/
+
+🔗 **Backend (Socket Server)**  
+https://videocallapp-backend-cllm.onrender.com/
+
+> 💡 Open the app on two different devices or browsers, enter the same room ID, and start a video call.
 
 ---
 
-## Installation
+## ✨ Features
 
-### 1. Clone the repository
+- 🔗 Join a room using a **Room ID**
+- 📹 Real-time video & audio communication (WebRTC)
+- 🔴 Peer-to-peer connection (no media server)
+- 🔄 Socket.IO signaling (offer / answer / ICE)
+- 🎤 Mute / Unmute microphone (with live indicator)
+- 📷 Camera on / off toggle
+- 🔇 Remote mute status indicator (real-time)
+- 🖥 Screen sharing support
+- ⏱ Call duration timer
+- ❌ Call end / disconnect handling
+- 🎨 Modern **piano black & neon green** UI
+- 📱 Responsive design (desktop & mobile)
+- ☁️ Fully deployed on **Render (HTTPS enabled)**
 
+---
+
+## 🛠 Tech Stack
+
+### Frontend
+- React 18
+- React Router
+- Socket.IO Client
+- WebRTC APIs (`RTCPeerConnection`)
+- Custom CSS (dark theme)
+
+### Backend
+- Node.js
+- Express
+- Socket.IO
+
+### Deployment
+- Render (Frontend & Backend)
+- HTTPS (required for WebRTC media access)
+
+---
+
+## 🧠 How It Works (High-Level)
+
+1. Users join a room using a room ID.
+2. Socket.IO handles signaling between peers (join, offer, answer, ICE candidates).
+3. WebRTC establishes a direct peer-to-peer connection for audio/video.
+4. Media state changes (mute, camera off) are synced in real time.
+5. UI updates dynamically based on call state and peer actions.
+
+---
+
+## ▶️ Run Locally
+
+### 1️⃣ Clone the repository
 ```bash
-git clone https://github.com/your-username/video-call-app.git
-cd video-call-app
-2. Install server dependencies
+git clone https://github.com/sharad1666/VideoCallApp.git
+cd VideoCallApp
+2️⃣ Start Backend
+bash
+Copy code
 cd server
 npm install
-
-3. Install client dependencies
-cd ../client
-npm install
-
-Running Locally
-1. Start the backend server
-cd server
-node index.js
-
-
-The server will run on http://localhost:8000
-
-2. Start the React frontend
-cd client
 npm start
+Backend runs on:
 
-
-The React app will run on http://localhost:3000
-
-3. Testing
-
-Open two different browsers or devices (or an incognito window)
-
-Enter the same room number and different emails
-
-Click Join and then Call to start video call
-
-Deployment
-
-You can deploy the frontend and backend separately or together:
-
-Frontend
-
-Build the React app:
-
+arduino
+Copy code
+http://localhost:8000
+3️⃣ Start Frontend
+bash
+Copy code
 cd client
-npm run build
+npm install
+npm start
+Frontend runs on:
 
+arduino
+Copy code
+http://localhost:3000
+🧪 Testing Instructions
+Open the app in two different browsers or devices
 
-Deploy build/ folder to platforms like Vercel, Netlify, or Firebase Hosting
+Enter the same room ID
 
-Backend
+Click Join → Start Call
 
-Deploy the server to Heroku, Render, or Railway
+Test:
 
-Make sure the server URL is updated in your React app for Socket.IO connection
+Mute / unmute
 
-Notes
+Camera on / off
 
-Each participant should use a separate browser or device for video call.
+Screen sharing
 
-Device-in-use errors occur if the camera or microphone is already being used by another tab/browser.
+Call end
 
-Project Structure
-video-call-app/
-├── client/           # React frontend
+📁 Project Structure
+csharp
+Copy code
+VideoCallApp/
+├── client/               # React frontend
 │   ├── src/
-│   │   ├── screens/  # LobbyScreen & RoomPage
-│   │   ├── service/  # Peer connection service
-│   │   └── context/  # Socket provider
-│   └── package.json
-├── server/           # Node.js + Socket.IO backend
+│   │   ├── screens/      # Lobby & Room
+│   │   ├── context/      # Socket provider
+│   │   └── index.js
+│   └── public/
+│       └── _redirects
+├── server/               # Node.js + Socket.IO backend
 │   └── index.js
 └── README.md
+📌 Future Enhancements
+Group video calls
 
-License
+In-call chat
 
-This project is open source and free to use.
+Call recording
 
+TURN server integration
 
-I can also create a **ready-to-use GitHub repo structure** including `.gitignore` and deployment instructions, so you can just push it to GitHub and deploy.  
+User authentication
 
-Do you want me to do that next?
+👤 Author
+Sharad Kumar Yadav
+PG-DAC | Full Stack Developer
+C-DAC ACTS, Pune
+
+⭐ Support
+If you find this project useful, please give it a ⭐ on GitHub!
