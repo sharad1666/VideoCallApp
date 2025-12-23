@@ -15,8 +15,25 @@ const Lobby = () => {
   };
 
   return (
-    <div style={{ textAlign: "center", marginTop: "100px" }}>
-      <h2>Join Video Call</h2>
+  <div
+    style={{
+      minHeight: "100vh",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    }}
+  >
+    <div
+      style={{
+        background: "white",
+        padding: "40px",
+        borderRadius: "12px",
+        boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
+        textAlign: "center",
+        width: "320px",
+      }}
+    >
+      <h2 style={{ marginBottom: "20px" }}>Join Video Call</h2>
 
       <input
         type="text"
@@ -25,12 +42,12 @@ const Lobby = () => {
         onChange={(e) => setRoom(e.target.value)}
       />
 
-      <br />
-      <br />
-
-      <button onClick={handleJoin}>Join</button>
+      <div style={{ marginTop: "20px" }}>
+        <button onClick={handleJoin}>Join</button>
+      </div>
     </div>
-  );
-};
+  </div>
+);
+
 
 export default Lobby;
