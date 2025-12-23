@@ -136,27 +136,76 @@ const Room = () => {
 
   // -------- UI --------
   return (
-    <div style={{ textAlign: "center" }}>
-      <h2>Room: {roomId}</h2>
+  <div style={{ minHeight: "100vh", padding: 20 }}>
+    <h2 style={{ textAlign: "center" }}>Room: {roomId}</h2>
 
-      {remoteId && !inCall && (
-        <button onClick={startCall}>📞 Start Call</button>
-      )}
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "center",
+        gap: 20,
+        flexWrap: "wrap",
+        marginTop: 20,
+      }}
+    >
+      <video
+        ref={localVideoRef}
+        autoPlay
+        muted
+        playsInline
+        style={{
+          width: "300px",
+          borderRadius: "10px",
+          background: "black",
+        }}
+      />
 
-      <div style={{ display: "flex", justifyContent: "center", gap: 10 }}>
-        <video ref={localVideoRef} autoPlay muted width="300" />
-        <video ref={remoteVideoRef} autoPlay width="300" />
-      </div>
-
-      {inCall && (
-        <div>
-          <button onClick={toggleMic}>🎤</button>
-          <button onClick={toggleCam}>📷</button>
-          <button onClick={endCall}>❌</button>
-        </div>
-      )}
+      <video
+        ref={remoteVideoRef}
+        autoPlay
+        playsInline
+        style={{
+          width: "300px",
+          borderRadius: "10px",
+          background: "black",
+        }}
+      />
     </div>
-  );
+
+    {!inCall && remoteId && (
+      <div style={{ textAlign: "center", marginTop: 20 }}>
+        <button onClick={startCall}>📞 Start Call</button>
+      </div>
+    )}
+
+    {inCall && (
+      <div
+        style={{
+          position: "fixed",
+          bottom: 20,
+          left: "50%",
+          transform: "translateX(-50%)",
+          background: "white",
+          padding: "12px 20px",
+          borderRadius: "12px",
+          boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+          display: "flex",
+          gap: 12,
+        }}
+      >
+        <button onClick={toggleMic}>🎤</button>
+        <button onClick={toggleCam}>📷</button>
+        <button
+          onClick={endCall}
+          style={{ background: "#dc2626" }}
+        >
+          ❌
+        </button>
+      </div>
+    )}
+  </div>
+);
+
 };
 
 export default Room;
