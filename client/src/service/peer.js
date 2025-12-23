@@ -1,7 +1,6 @@
 class PeerService {
   constructor() {
     this.peer = null;
-    this.createPeer();
   }
 
   createPeer() {
@@ -11,56 +10,35 @@ class PeerService {
         { urls: "stun:global.stun.twilio.com:3478" },
       ],
     });
+    return this.peer;
   }
 
-  async getOffer() {
+  getPeer() {
     if (!this.peer) this.createPeer();
+    return this.peer;
+  }
 
+  async createOffer() {
     const offer = await this.peer.createOffer();
     await this.peer.setLocalDescription(offer);
     return offer;
   }
 
-  async getAnswer(offer) {
-    if (!this.peer) this.createPeer();
-
-    await this.peer.setRemoteDescription(
-      new RTCSessionDescription(offer)
-    );
-
+  async createAnswer(offer) {
+    await this.peer.setRemoteDescription(offer);
     const answer = await this.peer.createAnswer();
     await this.peer.setLocalDescription(answer);
     return answer;
   }
 
-  async setRemoteAnswer(answer) {
-    if (!this.peer) this.createPeer();
-
-    await this.peer.setRemoteDescription(
-      new RTCSessionDescription(answer)
-    );
+  async setAnswer(answer) {
+    await this.peer.setRemoteDescription(answer);
   }
 
-  // 🔄 Replace video track (used for screen sharing)
-  replaceVideoTrack(newTrack) {
-    const sender = this.peer
-      ?.getSenders()
-      ?.find((s) => s.track && s.track.kind === "video");
-
-    if (sender) {
-      sender.replaceTrack(newTrack);
-    }
-  }
-
-  // ❌ End call & reset peer
-  closePeer() {
-    if (this.peer) {
-      this.peer.getSenders().forEach((sender) => sender.track?.stop());
-      this.peer.close();
-      this.peer = null;
-    }
+  close() {
+    this.peer?.close();
+    this.peer = null;
   }
 }
 
-const peerInstance = new PeerService();
-export default peerInstance;
+export default new PeerService();
